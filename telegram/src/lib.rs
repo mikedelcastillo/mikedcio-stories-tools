@@ -1,11 +1,13 @@
 use teloxide::prelude::*;
+use std::env;
 
 const MIKE_CHAT_ID: i64 = 248923795;
 
 pub async fn run_telegram_bot(){
-    let bot = Bot::new("5796751667:AAGPS3QNCcqIYJJuB7C91Wzkc2MAR2w7UCQ");
+    let token = env::var("TELEGRAM_BOT_ACCESS_TOKEN").expect("TELEGRAM_BOT_ACCESS_TOKEN not set in environment");
+    let bot = Bot::new(token);
 
-    let _ = bot.send_message(ChatId(MIKE_CHAT_ID), "wazzap").await;
+    let _ = bot.send_message(ChatId(MIKE_CHAT_ID), "TELEGRAM BOT STARTED").await;
 
     teloxide::repl(bot, |bot: Bot, msg: Message| async move {
         println!("{:?}", msg);
