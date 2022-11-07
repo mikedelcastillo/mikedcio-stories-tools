@@ -12,6 +12,9 @@ pub fn generate_id(len: u32) -> String {
     out
 }
 
+pub mod bot;
+pub use bot::*;
+
 #[cfg(test)]
 mod tests {
     use super::*;
