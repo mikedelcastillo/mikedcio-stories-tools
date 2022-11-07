@@ -8,11 +8,9 @@ async fn main() {
 
     let mut app_threads = vec![];
 
-    let app_thread = tokio::spawn(async {
-        run_telegram_bot().await
-    });
+    let app_thread = tokio::spawn(async { run_telegram_bot().await });
     app_threads.push(app_thread);
-    
+
     for app_thread in app_threads {
         app_thread.await.expect("Thread failed.");
     }
