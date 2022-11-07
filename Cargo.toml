@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+    "client",
+    "files",
+    "telegram",
+    "utils",
+    "app"
+]
