@@ -12,17 +12,26 @@ pub async fn run_telegram_bot(){
     let _ = bot.send_message(ChatId(MIKE_CHAT_ID), "TELEGRAM BOT STARTED").await;
 
     teloxide::repl(bot, |bot: Bot, msg: Message| async move {
-        if let Some(txt) = msg.text() {
-            let command = utils::parse_bot_message(txt);
-            
-            match command {
-                Ok(command) => println!("command is: {:?}", command),
-                Err(err) => println!("command error: {:?}", err),
-            };
-            
 
-            let _ = bot.send_message(msg.chat.id, txt).await;
-        }
+        let txt = if let Some(txt) = msg.text() {
+            txt
+        } else if let Some(txt) = msg.caption() {
+            txt
+        } else{
+            ""
+        };
+
+        
+        let command = utils::parse_bot_message(txt);
+        
+        let response = match command {
+            Ok(command) => format!("command is: {:?}", command),
+            Err(err) => format!("command error: {:?}", err),
+        };
+
+        let response = format!("{}\n\n{:?}", response, msg);
+
+        let _ = bot.send_message(msg.chat.id, response).await;
         Ok(())
     }).await;
 }
