@@ -61,14 +61,22 @@ pub fn parse_bot_message(txt: &str) -> Result<BotMessage, BotMessageError> {
     let txt_lwc = txt.to_lowercase();
 
     if txt_lwc.starts_with(BOT_TRIGGER) {
-        let txt_com_offset = &txt_lwc[BOT_TRIGGER.len()..];
 
         let re = Regex::new(r"^\S*").unwrap();
         let content = re.replace(txt, "");
         let content = content.trim().to_string();
 
+        let command = re.captures(&txt_lwc[BOT_TRIGGER.len()..]);
+        let command = match command {
+            Some(captures) => match captures.get(1) {
+                Some(s) => s.as_str(),
+                _ => "",
+            }
+            _ => "",
+        };
+        
         // post
-        if txt_com_offset.starts_with("post") {
+        if command == "post" {
             return parse_make_post(&content);
         }
 
