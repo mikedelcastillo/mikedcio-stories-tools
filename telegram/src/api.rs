@@ -56,6 +56,7 @@ impl<'a> TGApi<'a> {
     }
 
     pub fn send(&self, message: String) -> Result<()> {
+        println!("SENDING: {}", message);
         let url = self.url.send(vec![
             ("chat_id", self.admin_chat_id.as_str()),
             ("text", message.as_str()),
@@ -65,6 +66,14 @@ impl<'a> TGApi<'a> {
 
         Ok(())
     }
+
+    // pub fn send_thread(&'a self, message: String) {
+    //     let _ = crossbeam::thread::scope(|s| {
+    //         s.spawn(|_| {
+    //             let _ = self.send(message);
+    //         });
+    //     }).unwrap();
+    // }
 
     pub fn get_updates(&mut self) -> Result<()> {
         let offset = self.last_update + 1;
