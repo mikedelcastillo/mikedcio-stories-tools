@@ -1,17 +1,17 @@
+use std::thread;
+
 use telegram::run_telegram_bot;
 
 use dotenv::dotenv;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     dotenv().ok();
 
     let mut app_threads = vec![];
 
-    let app_thread = tokio::spawn(async { run_telegram_bot().await });
-    app_threads.push(app_thread);
+    app_threads.push(thread::spawn(|| run_telegram_bot()));
 
     for app_thread in app_threads {
-        app_thread.await.expect("Thread failed.");
+        app_thread.join().expect("Thread failed.");
     }
 }

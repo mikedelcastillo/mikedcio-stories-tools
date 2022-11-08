@@ -1,39 +1,26 @@
-use std::env;
-use teloxide::prelude::*;
+use std::{env};
 
-use utils;
+mod api;
+use api::TGApi;
 
-const MIKE_CHAT_ID: i64 = 248923795;
+#[derive(Debug)]
+pub enum TGState {
+    Start,
+}
 
-pub async fn run_telegram_bot() {
+pub fn run_telegram_bot() {
     let token = env::var("TELEGRAM_BOT_ACCESS_TOKEN")
         .expect("TELEGRAM_BOT_ACCESS_TOKEN not set in environment");
-    let bot = Bot::new(token);
+    let admin_chat_id =
+        env::var("TELEGRAM_ADMIN_CHAT_ID").expect("TELEGRAM_ADMIN_CHAT_ID not set in environment");
 
-    let _ = bot
-        .send_message(ChatId(MIKE_CHAT_ID), "TELEGRAM BOT STARTED")
-        .await;
+    let mut api = TGApi::new(&token);
 
-    teloxide::repl(bot, |bot: Bot, msg: Message| async move {
-        let txt = if let Some(txt) = msg.text() {
-            txt
-        } else if let Some(txt) = msg.caption() {
-            txt
-        } else {
-            ""
+    loop {
+        match api.get_updates() {
+            Ok(n) => println!("{}", n),
+            Err(err) => println!("Could not get updates. {}", err),
         };
-
-        let command = utils::parse_bot_message(txt);
-
-        let response = match command {
-            Ok(command) => format!("command is: {:?}", command),
-            Err(err) => format!("command error: {:?}", err),
-        };
-
-        let response = format!("{}\n\n{:?}", response, msg);
-
-        let _ = bot.send_message(msg.chat.id, response).await;
-        Ok(())
-    })
-    .await;
+        
+    }
 }
