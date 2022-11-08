@@ -1,5 +1,3 @@
-
-
 use anyhow::{Error, Result};
 use reqwest::{self};
 use serde_json::{self, Value};
@@ -25,7 +23,7 @@ impl<'a> TGUrl<'a> {
             let part = format!("{}={}&", key, encoded);
             query_string.push_str(part.as_str())
         }
-        
+
         format!("{}?{}", base, query_string)
     }
 
@@ -63,9 +61,8 @@ impl<'a> TGApi<'a> {
             ("text", message.as_str()),
         ]);
 
-        println!("url: {}", url);
-
         reqwest::blocking::get(url)?;
+
         Ok(())
     }
 
@@ -75,8 +72,6 @@ impl<'a> TGApi<'a> {
         let offset = offset.as_str();
 
         let url = self.url.updates(vec![("offset", offset)]);
-
-        println!("url: {}", url);
 
         let txt = reqwest::blocking::get(url)?.text()?;
         let txt = txt.as_str();

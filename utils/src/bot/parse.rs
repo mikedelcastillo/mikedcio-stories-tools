@@ -10,6 +10,7 @@ pub enum BotMessage {
     MakePost {
         title: String,
         tags: Vec<String>,
+        link: String,
         caption: String,
     },
 }
@@ -31,6 +32,7 @@ pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> 
     let caption = re_prop.replace_all(content, "").trim().to_string();
     let mut title = String::new();
     let mut tags = vec![];
+    let mut link = String::new();
 
     // Capture post properties
     for capture in re_prop.captures_iter(content) {
@@ -40,9 +42,14 @@ pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> 
         if prop == "title" {
             title.push_str(val);
         } else if prop == "tags" {
-            for tag in val.split_whitespace() {
+            let re_sanitize = Regex::new(r"[^a-z0-9- ]").unwrap();
+            let sanitized = val.to_lowercase();
+            let sanitized = re_sanitize.replace_all(sanitized.as_str(), "");
+            for tag in sanitized.split_whitespace() {
                 tags.push(tag.to_string());
             }
+        } else if prop == "link" {
+            link = val.trim().to_string();
         }
     }
 
@@ -53,6 +60,7 @@ pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> 
     Ok(BotMessage::MakePost {
         title,
         tags,
+        link,
         caption,
     })
 }
