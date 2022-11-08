@@ -1,6 +1,7 @@
 use anyhow::{Error, Result};
 use reqwest::{self};
 use serde_json::{self, Value};
+use utils::parse_bot_message;
 
 pub struct TGUrl<'a> {
     token: &'a String,
@@ -73,31 +74,58 @@ impl<'a> TGApi<'a> {
             .ok_or(Error::msg("Could not read results as array"))?;
 
         for message in results {
-            let update = message.as_object()
+            let update = message
+                .as_object()
                 .ok_or(Error::msg("Could not read update as map"))?;
 
-            let last_update = update.get("update_id")
+            let last_update = update
+                .get("update_id")
                 .ok_or(Error::msg("Could not get update_id"))?
                 .as_u64()
                 .ok_or(Error::msg("Could not read update_id as u64"))?;
 
-            let message = update.get("message")
+            let message = update
+                .get("message")
                 .ok_or(Error::msg("Could not read message of upset"))?
                 .as_object()
                 .ok_or(Error::msg("Could not read message as map"))?;
 
-            let chat_id = message.get("chat").ok_or(Error::msg("X"))?
-                .as_object().ok_or(Error::msg("X"))?
-                .get("id").ok_or(Error::msg("X"))?
-                .as_u64().ok_or(Error::msg("X"))?
+            let chat_id = message
+                .get("chat")
+                .ok_or(Error::msg("Could not get chat of message"))?
+                .as_object()
+                .ok_or(Error::msg("Could not read chat as object"))?
+                .get("id")
+                .ok_or(Error::msg("Could not get id of chat"))?
+                .as_u64()
+                .ok_or(Error::msg("Could not read if as u64"))?
                 .to_string();
 
             if &chat_id != self.admin_chat_id {
                 continue;
             }
 
+            let text = match message.get("text") {
+                Some(text) => text
+                    .as_str()
+                    .ok_or(Error::msg("Could not read text as string"))?,
+                None => "",
+            };
+
+            let caption = match message.get("caption") {
+                Some(caption) => caption
+                    .as_str()
+                    .ok_or(Error::msg("Could not read caption as string"))?,
+                None => "",
+            };
+
+            let c_text = format!("{} {}", text, caption);
+            let c_text = c_text.trim();
+
+            let parsed = parse_bot_message(c_text);
+
             self.last_update = last_update;
-            println!("{:?}", message);
+            println!("{:?}, {:?}", c_text, parsed);
         }
 
         Ok(())

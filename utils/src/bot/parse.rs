@@ -25,15 +25,15 @@ pub static BOT_TRIGGER: &str = "/";
 pub fn match_and_get_command(_source: &str, _command: &str) {}
 
 pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> {
-    let re = Regex::new(r"(\S*):\s*([^\n]*)").unwrap();
+    let re_prop = Regex::new(r"(\S*):\s*([^\n]*)").unwrap();
 
     // Isolate caption
-    let caption = re.replace_all(content, "").trim().to_string();
+    let caption = re_prop.replace_all(content, "").trim().to_string();
     let mut title = String::new();
     let mut tags = vec![];
 
     // Capture post properties
-    for capture in re.captures_iter(content) {
+    for capture in re_prop.captures_iter(content) {
         let prop = capture.get(1).map_or("", |m| m.as_str()).to_lowercase();
         let val = capture.get(2).map_or("", |m| m.as_str());
 
@@ -64,11 +64,11 @@ pub fn parse_bot_message(txt: &str) -> Result<BotMessage, BotMessageError> {
     let txt_lwc = txt.to_lowercase();
 
     if txt_lwc.starts_with(BOT_TRIGGER) {
-        let re = Regex::new(r"([a-z0-9_]*)").unwrap();
-        let content = re.replace(txt, "");
+        let re_command = Regex::new(r"([a-z0-9_]*)").unwrap();
+        let content = re_command.replace(&txt[BOT_TRIGGER.len()..], "");
         let content = content.trim().to_string();
 
-        let command = re.captures(&txt_lwc[BOT_TRIGGER.len()..]);
+        let command = re_command.captures(&txt_lwc[BOT_TRIGGER.len()..]);
         let command = match command {
             Some(captures) => match captures.get(1) {
                 Some(s) => s.as_str(),
