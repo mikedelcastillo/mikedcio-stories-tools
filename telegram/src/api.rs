@@ -1,6 +1,9 @@
+
+
 use anyhow::{Error, Result};
 use reqwest::{self};
 use serde_json::{self, Value};
+use urlencoding::encode;
 use utils::parse_bot_message;
 
 pub struct TGUrl<'a> {
@@ -14,9 +17,16 @@ impl<'a> TGUrl<'a> {
         Self { token }
     }
 
-    pub fn query(base: String, query: TGUrlQuery) -> String {
-        let query = querystring::stringify(query);
-        format!("{}?{}", base, query)
+    pub fn query<'b>(base: String, query: TGUrlQuery<'b>) -> String {
+        let mut query_string = String::new();
+
+        for (key, val) in query {
+            let encoded = encode(val).into_owned();
+            let part = format!("{}={}&", key, encoded);
+            query_string.push_str(part.as_str())
+        }
+        
+        format!("{}?{}", base, query_string)
     }
 
     pub fn base(&self, method: &str) -> String {
@@ -25,6 +35,10 @@ impl<'a> TGUrl<'a> {
 
     pub fn updates(&self, query: TGUrlQuery) -> String {
         Self::query(self.base("getUpdates"), query)
+    }
+
+    pub fn send(&self, query: TGUrlQuery) -> String {
+        Self::query(self.base("sendMessage"), query)
     }
 }
 
@@ -43,12 +57,26 @@ impl<'a> TGApi<'a> {
         }
     }
 
+    pub fn send(&self, message: String) -> Result<()> {
+        let url = self.url.send(vec![
+            ("chat_id", self.admin_chat_id.as_str()),
+            ("text", message.as_str()),
+        ]);
+
+        println!("url: {}", url);
+
+        reqwest::blocking::get(url)?;
+        Ok(())
+    }
+
     pub fn get_updates(&mut self) -> Result<()> {
         let offset = self.last_update + 1;
         let offset = offset.to_string();
         let offset = offset.as_str();
 
         let url = self.url.updates(vec![("offset", offset)]);
+
+        println!("url: {}", url);
 
         let txt = reqwest::blocking::get(url)?.text()?;
         let txt = txt.as_str();
@@ -125,7 +153,10 @@ impl<'a> TGApi<'a> {
             let parsed = parse_bot_message(c_text);
 
             self.last_update = last_update;
-            println!("{:?}, {:?}", c_text, parsed);
+
+            let response = format!("{:?}\n\n{:?}", c_text, parsed);
+
+            let _ = self.send(response);
         }
 
         Ok(())
