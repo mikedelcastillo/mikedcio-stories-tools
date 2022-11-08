@@ -1,4 +1,4 @@
-use std::{env};
+use std::env;
 
 mod api;
 use api::TGApi;
@@ -14,13 +14,12 @@ pub fn run_telegram_bot() {
     let admin_chat_id =
         env::var("TELEGRAM_ADMIN_CHAT_ID").expect("TELEGRAM_ADMIN_CHAT_ID not set in environment");
 
-    let mut api = TGApi::new(&token);
+    let mut api = TGApi::new(&token, &admin_chat_id);
 
     loop {
         match api.get_updates() {
-            Ok(n) => println!("{}", n),
+            Ok(_) => (),
             Err(err) => println!("Could not get updates. {}", err),
         };
-        
     }
 }
