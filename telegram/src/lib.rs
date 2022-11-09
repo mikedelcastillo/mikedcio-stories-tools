@@ -16,6 +16,8 @@ pub fn run_telegram_bot() {
 
     let mut api = TGApi::new(&token, &admin_chat_id);
 
+    let _ = api.send("Bot ready. Share stories about your day! 🤖".to_string());
+
     loop {
         match api.get_updates() {
             Ok(_) => (),

@@ -1,8 +1,8 @@
 use anyhow::{Error, Result};
 use reqwest::{self};
-use serde_json::{self, Value};
+use serde_json::{self, Map, Value};
 use urlencoding::encode;
-use utils::parse_bot_message;
+use utils::{parse_bot_message, BotMessage, BotMessageError};
 
 pub struct TGUrl<'a> {
     token: &'a String,
@@ -40,6 +40,28 @@ impl<'a> TGUrl<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct TGMessage {
+    pub update_id: u64,
+    pub text: String,
+    pub parsed: Result<BotMessage, BotMessageError>,
+    pub group_id: Option<String>,
+    pub media: Vec<TGMedia>,
+}
+
+#[derive(Debug)]
+pub enum TGMediaType {
+    Photo,
+    Video,
+    File,
+}
+
+#[derive(Debug)]
+pub struct TGMedia {
+    pub file_id: String,
+    pub media_type: TGMediaType,
+}
+
 pub struct TGApi<'a> {
     last_update: u64,
     admin_chat_id: &'a String,
@@ -62,32 +84,66 @@ impl<'a> TGApi<'a> {
             ("text", message.as_str()),
         ]);
 
-        reqwest::blocking::get(url)?;
-
-        Ok(())
+        match reqwest::blocking::get(url) {
+            Ok(_) => Ok(()),
+            _ => Err(Error::msg("Could not send message.")),
+        }
     }
 
-    // pub fn send_thread(&'a self, message: String) {
-    //     let _ = crossbeam::thread::scope(|s| {
-    //         s.spawn(|_| {
-    //             let _ = self.send(message);
-    //         });
-    //     }).unwrap();
-    // }
+    pub fn _send_multiple(&'a self, messages: Vec<String>) -> Result<()> {
+        match crossbeam::thread::scope(|s| {
+            for message in messages {
+                s.spawn(|_| {
+                    let _ = self.send(message);
+                });
+            }
+            Ok(())
+        }) {
+            Ok(v) => v,
+            _ => Err(Error::msg("Could not send messages.")),
+        }
+    }
 
-    pub fn get_updates(&mut self) -> Result<()> {
+    fn get_file_id(obj: &Map<String, Value>) -> Result<String> {
+        Ok(obj
+            .get("file_id")
+            .ok_or(Error::msg("Could not get file_id from document"))?
+            .as_str()
+            .ok_or(Error::msg("Could not read file_id as string"))?
+            .to_string())
+    }
+
+    fn get_mime_type(obj: &Map<String, Value>) -> Result<String> {
+        Ok(obj
+            .get("mime_type")
+            .ok_or(Error::msg("Could not get mime_type from document"))?
+            .as_str()
+            .ok_or(Error::msg("Could not read mime_type as string"))?
+            .to_string())
+    }
+
+    fn get_file_size(obj: &Map<String, Value>) -> Result<u64> {
+        Ok(obj
+            .get("file_size")
+            .ok_or(Error::msg("Could not get file_size from document"))?
+            .as_u64()
+            .ok_or(Error::msg("Could not read file_size as number"))?)
+    }
+
+    pub fn get_updates(&mut self) -> Result<Vec<TGMessage>> {
+        let mut temp_last_update = self.last_update;
         let offset = self.last_update + 1;
         let offset = offset.to_string();
         let offset = offset.as_str();
 
         let url = self.url.updates(vec![("offset", offset)]);
 
-        let txt = reqwest::blocking::get(url)?.text()?;
-        let txt = txt.as_str();
+        let response_text = reqwest::blocking::get(url)?.text()?;
+        let response_text = response_text.as_str();
 
-        let json: Value = serde_json::from_str(txt)?;
+        let json: Value = serde_json::from_str(response_text)?;
 
-        // println!("{:?}", json);
+        let mut output = vec![];
 
         let ok = json
             .get("ok")
@@ -110,7 +166,7 @@ impl<'a> TGApi<'a> {
                 .as_object()
                 .ok_or(Error::msg("Could not read update as map"))?;
 
-            let last_update = update
+            let update_id = update
                 .get("update_id")
                 .ok_or(Error::msg("Could not get update_id"))?
                 .as_u64()
@@ -135,7 +191,81 @@ impl<'a> TGApi<'a> {
 
             if &chat_id != self.admin_chat_id {
                 continue;
-            }
+            };
+
+            let group_id = match message.get("media_group_id") {
+                Some(media_group_id) => Some(
+                    media_group_id
+                        .as_str()
+                        .ok_or(Error::msg("Could not read media_group_id as string"))?
+                        .to_string(),
+                ),
+                _ => None,
+            };
+
+            let mut media = vec![];
+
+            if let Some(document) = message.get("document") {
+                let document = document
+                    .as_object()
+                    .ok_or(Error::msg("Could not read document as object"))?;
+
+                // TODO: Specify file type
+                let _mime_type = Self::get_mime_type(document);
+
+                media.push(TGMedia {
+                    file_id: Self::get_file_id(document)?,
+                    media_type: TGMediaType::File,
+                });
+            };
+
+            if let Some(video) = message.get("video") {
+                let video = video
+                    .as_object()
+                    .ok_or(Error::msg("Could not read video as object"))?;
+
+                media.push(TGMedia {
+                    file_id: Self::get_file_id(video)?,
+                    media_type: TGMediaType::Video,
+                });
+            };
+
+            if let Some(photos) = message.get("photo") {
+                let photos = photos
+                    .as_array()
+                    .ok_or(Error::msg("Could not read photo as array"))?;
+
+                let mut photo_objs = vec![];
+
+                for photo in photos {
+                    match photo.as_object() {
+                        Some(photo) => photo_objs.push(photo),
+                        _ => (),
+                    };
+                }
+
+                if photos.len() >= 1 {
+                    let mut largest_photo_size: u64 = 0;
+                    let mut largest_photo = photo_objs[0];
+
+                    for photo in &photo_objs[1..] {
+                        let file_size = Self::get_file_size(photo)?;
+                        if file_size > largest_photo_size {
+                            largest_photo = *photo;
+                            largest_photo_size = file_size;
+                        }
+
+                        println!("other photo: {:?}", photo);
+                    }
+
+                    println!("selected photo: {:?}", largest_photo);
+
+                    media.push(TGMedia {
+                        file_id: Self::get_file_id(largest_photo)?,
+                        media_type: TGMediaType::Photo,
+                    });
+                }
+            };
 
             let text = match message.get("text") {
                 Some(text) => text
@@ -151,18 +281,24 @@ impl<'a> TGApi<'a> {
                 None => "",
             };
 
-            let c_text = format!("{} {}", text, caption);
-            let c_text = c_text.trim();
+            let combined_text = format!("{} {}", text, caption);
+            let combined_text = combined_text.trim();
 
-            let parsed = parse_bot_message(c_text);
+            let parsed = parse_bot_message(combined_text);
 
-            self.last_update = last_update;
+            output.push(TGMessage {
+                update_id,
+                text: combined_text.to_owned(),
+                parsed,
+                group_id,
+                media,
+            });
 
-            let response = format!("{:?}\n\n{:?}", c_text, parsed);
-
-            let _ = self.send(response);
+            temp_last_update = update_id;
         }
 
-        Ok(())
+        self.last_update = temp_last_update;
+        
+        Ok(output)
     }
 }
