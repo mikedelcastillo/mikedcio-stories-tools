@@ -178,7 +178,7 @@ impl TGApi {
                 return Ok(Some(Self::get_message_file_id(largest_photo)?));
             }
         }
-        
+
         Ok(None)
     }
 

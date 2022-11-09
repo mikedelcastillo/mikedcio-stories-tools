@@ -1,11 +1,11 @@
+use anyhow::{Error, Result};
 use std::{
     sync::mpsc::{self, Sender},
     thread,
 };
-use anyhow::{Error, Result};
 
 mod api;
-use api::{TGApi, TGMessage, TGFile};
+use api::{TGApi, TGFile, TGMessage};
 use utils::{parse_make_post, BotCommand, PostText};
 
 #[derive(Debug)]
@@ -61,13 +61,16 @@ fn handle_message(message: TGMessage, state: TGState, tx: Sender<String>) -> TGS
             BotCommand::MakePostStream => {
                 let _ = tx.send(format!("Starting post stream! 🎈"));
                 TGState::MakePostStream
-            },
+            }
             BotCommand::MakePost(post_text) => {
                 let _ = handle_make_post_on_new_thread(post_text, message.file_id, tx.clone());
                 TGState::Start
-            },
+            }
             _ => {
-                let _ = tx.send(format!("I don't know what to do with `{:?}`. 😥", message.command));
+                let _ = tx.send(format!(
+                    "I don't know what to do with `{:?}`. 😥",
+                    message.command
+                ));
                 TGState::Start
             }
         },
@@ -75,32 +78,50 @@ fn handle_message(message: TGMessage, state: TGState, tx: Sender<String>) -> TGS
             BotCommand::Done => {
                 let _ = tx.send("Post stream ended. 🤖".to_string());
                 TGState::Start
-            },
+            }
             _ => {
                 let post_text = parse_make_post(&message.text);
                 let _ = handle_make_post_on_new_thread(post_text, message.file_id, tx.clone());
                 TGState::MakePostStream
             }
-        }
+        },
     }
 }
 
-fn handle_make_post_on_new_thread(post_text: PostText, file_id: Option<String>, tx: Sender<String>) {
+fn handle_make_post_on_new_thread(
+    post_text: PostText,
+    file_id: Option<String>,
+    tx: Sender<String>,
+) {
     thread::spawn(move || {
-        let _ = handle_make_post(post_text, file_id, tx);
+        match handle_make_post(post_text, file_id, tx.clone()) {
+            Ok(_) => {}
+            Err(err) => {
+                let _ = tx.send(format!("MakePostError: {:?}", err));
+            }
+        };
     });
 }
 
-fn handle_make_post(post_text: PostText, file_id: Option<String>, tx: Sender<String>) -> Result<()>{
-    let response = format!("Making post `{:?} with files {:?}`", post_text, file_id);
+fn handle_make_post(
+    post_text: PostText,
+    file_id: Option<String>,
+    tx: Sender<String>,
+) -> Result<()> {
+    let response = format!("{:?}:{:?}`", &post_text, &file_id);
 
     if let Some(file_id) = file_id {
-        let _ = tx.send(format!("Downloading..."));
+        // let _ = tx.send(format!("Downloading..."));
         let api = TGApi::new_from_env();
         let file = api.get_file_url(&file_id)?;
-        let _ = tx.send(format!("Loaded {} file.", file.ext));
+        // let _ = tx.send(format!("Loaded {} file.", file.ext));
+    } else {
+        let sum = post_text.title.len() + post_text.caption.len() + post_text.tags.len();
+        if sum == 0 {
+            return Err(Error::msg("Post content is empty"));
+        }
     }
-    
+
     let _ = tx.send(response);
 
     Ok(())

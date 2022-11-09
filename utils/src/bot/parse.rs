@@ -2,10 +2,10 @@ use regex::Regex;
 
 #[derive(Debug)]
 pub struct PostText {
-    title: String,
-    tags: Vec<String>,
-    link: String,
-    caption: String,
+    pub title: String,
+    pub tags: Vec<String>,
+    pub link: String,
+    pub caption: String,
 }
 
 #[derive(Debug)]
