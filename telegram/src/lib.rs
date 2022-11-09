@@ -1,7 +1,6 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{mpsc},
     thread,
-    time::Duration,
 };
 
 mod api;
@@ -13,46 +12,38 @@ pub enum TGState {
 }
 
 pub fn run_telegram_bot() {
-    // let mut api = TGApi::new(&token, &admin_chat_id);
+    let (tx, rx) = mpsc::channel::<String>();
 
-    // let _ = api.send("Bot ready. Share stories about your day! 🤖".to_string());
-
-    // loop {
-    //     match api.get_updates() {
-    //         Ok(_) => (),
-    //         Err(err) => println!("Could not get updates. {}", err),
-    //     };
-    // }
-
-    let outgoing = Arc::new(Mutex::new(vec![
-        "Bot ready. Share stories about your day! 🤖".to_string(),
-    ]));
-
-    let shared_outgoing = outgoing.clone();
     let tx_thread = thread::spawn(move || {
+        println!("TG tx thread started.");
         let api = TGApi::new_from_env();
-        loop {
-            let mut outgoing = shared_outgoing.lock().unwrap();
-            println!("t{:?}", outgoing);
-            let _ = api.send_multiple(outgoing.clone());
-            outgoing.clear();
-            std::mem::drop(outgoing);
-            thread::sleep(Duration::from_millis(100))
-        }
+        crossbeam::thread::scope(|s| {
+            for message in rx {
+                s.spawn(|_| {
+                    let _ = api.send(message);
+                });
+            }
+        })
     });
 
-    let shared_outgoing = outgoing.clone();
     let rx_thread = thread::spawn(move || {
-        // let mut api = TGApi::new_from_env();
+        println!("TG rx thread started.");
+        let mut api = TGApi::new_from_env();
+
+        let _ = tx.send("Bot ready. Share stories about your day! 🤖".to_string());
+
         loop {
-            let mut outgoing = shared_outgoing.lock().unwrap();
-            outgoing.push("this is a random message...".to_string());
-            println!("r{:?}", outgoing.clone());
-            std::mem::drop(outgoing);
-            thread::sleep(Duration::from_millis(1000))
+            match api.get_updates() {
+                Err(err) => println!("{:?}", err),
+                Ok(messages) => for message in messages {
+                    let mtx = tx.clone();
+
+                    let _ = mtx.send(format!("{:?}", message));
+                },
+            }
         }
     });
 
-    tx_thread.join().unwrap();
-    rx_thread.join().unwrap();
+    let _ = tx_thread.join().unwrap();
+    let _ = rx_thread.join().unwrap();
 }

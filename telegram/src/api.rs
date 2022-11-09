@@ -101,7 +101,7 @@ impl TGApi {
         }
     }
 
-    pub fn send_multiple(&self, messages: Vec<String>) -> Result<()> {
+    pub fn _send_multiple(&self, messages: Vec<String>) -> Result<()> {
         match crossbeam::thread::scope(|s| {
             for message in messages {
                 s.spawn(|_| {
