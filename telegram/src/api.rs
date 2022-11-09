@@ -218,7 +218,7 @@ impl TGApi {
 
         let json: Value = serde_json::from_str(response_text)?;
 
-        let mut output = vec![];
+        let mut update_messages: Vec<TGMessage> = vec![];
 
         let ok = json
             .get("ok")
@@ -297,11 +297,33 @@ impl TGApi {
             let combined_text = format!("{} {}", text, caption);
             let combined_text = combined_text.trim();
 
-            let parsed = parse_bot_message(combined_text);
+            // If the text is empty, get the caption of previous group members
+            let combined_text = {
+                let mut temp_combined_text = combined_text.to_string();
 
-            output.push(TGMessage {
+                if combined_text.len() == 0 {
+                    if let Some(a_id) = &group_id {
+                        for up_msg in update_messages.iter().rev() {
+                            if let Some(b_id) = &up_msg.group_id {
+                                if a_id == b_id {
+                                    if up_msg.text.len() > 0 {
+                                        temp_combined_text = up_msg.text.to_owned();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+
+                temp_combined_text
+            };
+
+            let parsed = parse_bot_message(&combined_text);
+
+            update_messages.push(TGMessage {
                 update_id,
-                text: combined_text.to_owned(),
+                text: combined_text,
                 parsed,
                 group_id,
                 media,
@@ -312,6 +334,6 @@ impl TGApi {
 
         self.last_update = temp_last_update;
 
-        Ok(output)
+        Ok(update_messages)
     }
 }

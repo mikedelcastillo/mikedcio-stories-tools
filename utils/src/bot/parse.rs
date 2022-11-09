@@ -65,7 +65,7 @@ pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> 
     })
 }
 
-pub fn parse_bot_message(txt: &str) -> Result<BotMessage, BotMessageError> {
+pub fn parse_bot_message(txt: &String) -> Result<BotMessage, BotMessageError> {
     let txt = txt.trim();
     println!("PARSING_BOT_MESSAGE: {}", txt);
 
