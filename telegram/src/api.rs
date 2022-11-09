@@ -130,6 +130,70 @@ impl<'a> TGApi<'a> {
             .ok_or(Error::msg("Could not read file_size as number"))?)
     }
 
+    fn get_media(message: &Map<String, Value>) -> Result<Vec<TGMedia>> {
+        let mut media = vec![];
+        if let Some(document) = message.get("document") {
+            let document = document
+                .as_object()
+                .ok_or(Error::msg("Could not read document as object"))?;
+
+            // TODO: Specify file type
+            let _mime_type = Self::get_mime_type(document);
+
+            media.push(TGMedia {
+                file_id: Self::get_file_id(document)?,
+                media_type: TGMediaType::File,
+            });
+        };
+        if let Some(video) = message.get("video") {
+            let video = video
+                .as_object()
+                .ok_or(Error::msg("Could not read video as object"))?;
+
+            media.push(TGMedia {
+                file_id: Self::get_file_id(video)?,
+                media_type: TGMediaType::Video,
+            });
+        };
+        if let Some(photos) = message.get("photo") {
+            let photos = photos
+                .as_array()
+                .ok_or(Error::msg("Could not read photo as array"))?;
+
+            let mut photo_objs = vec![];
+
+            for photo in photos {
+                match photo.as_object() {
+                    Some(photo) => photo_objs.push(photo),
+                    _ => (),
+                };
+            }
+
+            if photos.len() >= 1 {
+                let mut largest_photo_size: u64 = 0;
+                let mut largest_photo = photo_objs[0];
+
+                for photo in &photo_objs[1..] {
+                    let file_size = Self::get_file_size(photo)?;
+                    if file_size > largest_photo_size {
+                        largest_photo = *photo;
+                        largest_photo_size = file_size;
+                    }
+
+                    println!("other photo: {:?}", photo);
+                }
+
+                println!("selected photo: {:?}", largest_photo);
+
+                media.push(TGMedia {
+                    file_id: Self::get_file_id(largest_photo)?,
+                    media_type: TGMediaType::Photo,
+                });
+            }
+        };
+        Ok(media)
+    }
+
     pub fn get_updates(&mut self) -> Result<Vec<TGMessage>> {
         let mut temp_last_update = self.last_update;
         let offset = self.last_update + 1;
@@ -203,69 +267,7 @@ impl<'a> TGApi<'a> {
                 _ => None,
             };
 
-            let mut media = vec![];
-
-            if let Some(document) = message.get("document") {
-                let document = document
-                    .as_object()
-                    .ok_or(Error::msg("Could not read document as object"))?;
-
-                // TODO: Specify file type
-                let _mime_type = Self::get_mime_type(document);
-
-                media.push(TGMedia {
-                    file_id: Self::get_file_id(document)?,
-                    media_type: TGMediaType::File,
-                });
-            };
-
-            if let Some(video) = message.get("video") {
-                let video = video
-                    .as_object()
-                    .ok_or(Error::msg("Could not read video as object"))?;
-
-                media.push(TGMedia {
-                    file_id: Self::get_file_id(video)?,
-                    media_type: TGMediaType::Video,
-                });
-            };
-
-            if let Some(photos) = message.get("photo") {
-                let photos = photos
-                    .as_array()
-                    .ok_or(Error::msg("Could not read photo as array"))?;
-
-                let mut photo_objs = vec![];
-
-                for photo in photos {
-                    match photo.as_object() {
-                        Some(photo) => photo_objs.push(photo),
-                        _ => (),
-                    };
-                }
-
-                if photos.len() >= 1 {
-                    let mut largest_photo_size: u64 = 0;
-                    let mut largest_photo = photo_objs[0];
-
-                    for photo in &photo_objs[1..] {
-                        let file_size = Self::get_file_size(photo)?;
-                        if file_size > largest_photo_size {
-                            largest_photo = *photo;
-                            largest_photo_size = file_size;
-                        }
-
-                        println!("other photo: {:?}", photo);
-                    }
-
-                    println!("selected photo: {:?}", largest_photo);
-
-                    media.push(TGMedia {
-                        file_id: Self::get_file_id(largest_photo)?,
-                        media_type: TGMediaType::Photo,
-                    });
-                }
-            };
+            let media = Self::get_media(message)?;
 
             let text = match message.get("text") {
                 Some(text) => text
@@ -298,7 +300,7 @@ impl<'a> TGApi<'a> {
         }
 
         self.last_update = temp_last_update;
-        
+
         Ok(output)
     }
 }
