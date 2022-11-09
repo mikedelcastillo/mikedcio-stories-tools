@@ -1,31 +1,28 @@
 use regex::Regex;
 
 #[derive(Debug)]
-pub enum BotMessage {
-    Nothing,
-    JustText(String),
-    Done,
-
-    MakePostStream,
-    MakePost {
-        title: String,
-        tags: Vec<String>,
-        link: String,
-        caption: String,
-    },
+pub struct PostText {
+    title: String,
+    tags: Vec<String>,
+    link: String,
+    caption: String,
 }
 
 #[derive(Debug)]
-pub enum BotMessageError {
-    MakePostIncomplete,
-    CommandNotFound(String),
+pub enum BotCommand {
+    Text(String),
+
+    Done,
+
+    MakePostStream,
+    MakePost(PostText),
 }
 
 pub static BOT_TRIGGER: &str = "/";
 
 pub fn match_and_get_command(_source: &str, _command: &str) {}
 
-pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> {
+pub fn parse_make_post(content: &String) -> PostText {
     let re_prop = Regex::new(r"(\S*):\s*([^\n]*)").unwrap();
 
     // Isolate caption
@@ -53,22 +50,16 @@ pub fn parse_make_post(content: &String) -> Result<BotMessage, BotMessageError> 
         }
     }
 
-    if title.len() == 0 && tags.len() == 0 && caption.len() == 0 {
-        return Err(BotMessageError::MakePostIncomplete);
-    }
-
-    Ok(BotMessage::MakePost {
+    PostText {
         title,
         tags,
         link,
         caption,
-    })
+    }
 }
 
-pub fn parse_bot_message(txt: &String) -> Result<BotMessage, BotMessageError> {
+pub fn parse_message(txt: &String) -> BotCommand {
     let txt = txt.trim();
-    println!("PARSING_BOT_MESSAGE: {}", txt);
-
     let txt_lwc = txt.to_lowercase();
 
     if txt_lwc.starts_with(BOT_TRIGGER) {
@@ -85,22 +76,14 @@ pub fn parse_bot_message(txt: &String) -> Result<BotMessage, BotMessageError> {
             _ => "",
         };
 
-        // post
-        println!("command: {}", command);
         if command == "post" {
-            return parse_make_post(&content);
+            return BotCommand::MakePost(parse_make_post(&content));
         } else if command == "post_stream" {
-            return Ok(BotMessage::MakePostStream);
+            return BotCommand::MakePostStream;
         } else if command == "done" {
-            return Ok(BotMessage::Done);
+            return BotCommand::Done;
         }
-
-        return Err(BotMessageError::CommandNotFound(txt.to_string()));
     }
 
-    if txt.len() > 0 {
-        return Ok(BotMessage::JustText(txt.to_string()));
-    }
-
-    Ok(BotMessage::Nothing)
+    return BotCommand::Text(txt.to_string());
 }
