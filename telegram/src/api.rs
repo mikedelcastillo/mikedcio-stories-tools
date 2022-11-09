@@ -1,17 +1,19 @@
+use std::env;
+
 use anyhow::{Error, Result};
 use reqwest::{self};
 use serde_json::{self, Map, Value};
 use urlencoding::encode;
 use utils::{parse_bot_message, BotMessage, BotMessageError};
 
-pub struct TGUrl<'a> {
-    token: &'a String,
+pub struct TGUrl {
+    token: String,
 }
 
 pub type TGUrlQuery<'a> = Vec<(&'a str, &'a str)>;
 
-impl<'a> TGUrl<'a> {
-    pub fn new(token: &'a String) -> Self {
+impl TGUrl {
+    pub fn new(token: String) -> Self {
         Self { token }
     }
 
@@ -62,19 +64,28 @@ pub struct TGMedia {
     pub media_type: TGMediaType,
 }
 
-pub struct TGApi<'a> {
+pub struct TGApi {
     last_update: u64,
-    admin_chat_id: &'a String,
-    url: TGUrl<'a>,
+    admin_chat_id: String,
+    url: TGUrl,
 }
 
-impl<'a> TGApi<'a> {
-    pub fn new(token: &'a String, admin_chat_id: &'a String) -> Self {
+impl TGApi {
+    pub fn new(token: String, admin_chat_id: String) -> Self {
         Self {
             last_update: 0,
             admin_chat_id,
             url: TGUrl::new(token),
         }
+    }
+
+    pub fn new_from_env() -> Self {
+        let token = env::var("TELEGRAM_BOT_ACCESS_TOKEN")
+            .expect("TELEGRAM_BOT_ACCESS_TOKEN not set in environment");
+        let admin_chat_id = env::var("TELEGRAM_ADMIN_CHAT_ID")
+            .expect("TELEGRAM_ADMIN_CHAT_ID not set in environment");
+
+        Self::new(token, admin_chat_id)
     }
 
     pub fn send(&self, message: String) -> Result<()> {
@@ -90,7 +101,7 @@ impl<'a> TGApi<'a> {
         }
     }
 
-    pub fn _send_multiple(&'a self, messages: Vec<String>) -> Result<()> {
+    pub fn send_multiple(&self, messages: Vec<String>) -> Result<()> {
         match crossbeam::thread::scope(|s| {
             for message in messages {
                 s.spawn(|_| {
@@ -253,7 +264,7 @@ impl<'a> TGApi<'a> {
                 .ok_or(Error::msg("Could not read if as u64"))?
                 .to_string();
 
-            if &chat_id != self.admin_chat_id {
+            if chat_id != self.admin_chat_id {
                 continue;
             };
 
