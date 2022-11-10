@@ -1,11 +1,12 @@
 use anyhow::{Error, Result};
+use files::download_from_url;
 use std::{
     sync::mpsc::{self, Sender},
     thread,
 };
 
 mod api;
-use api::{TGApi, TGFile, TGMessage};
+use api::{TGApi, TGMessage};
 use utils::{parse_make_post, BotCommand, PostText};
 
 #[derive(Debug)]
@@ -113,7 +114,8 @@ fn handle_make_post(
     if let Some(file_id) = file_id {
         // let _ = tx.send(format!("Downloading..."));
         let api = TGApi::new_from_env();
-        let file = api.get_file_url(&file_id)?;
+        let file_url = api.get_file_url(&file_id)?;
+        let _ = download_from_url(file_url);
         // let _ = tx.send(format!("Loaded {} file.", file.ext));
     } else {
         let sum = post_text.title.len() + post_text.caption.len() + post_text.tags.len();

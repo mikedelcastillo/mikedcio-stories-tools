@@ -60,12 +60,6 @@ pub struct TGMessage {
     pub file_id: Option<String>,
 }
 
-#[derive(Debug)]
-pub struct TGFile {
-    pub url: String,
-    pub ext: String,
-}
-
 pub struct TGApi {
     last_update: u64,
     admin_chat_id: String,
@@ -314,7 +308,7 @@ impl TGApi {
         Ok(update_messages)
     }
 
-    pub fn get_file_url(&self, file_id: &String) -> Result<TGFile> {
+    pub fn get_file_url(&self, file_id: &String) -> Result<String> {
         let url = self.url.file(vec![("file_id", file_id.as_str())]);
 
         let response_text = reqwest::blocking::get(url)?.text()?;
@@ -334,19 +328,8 @@ impl TGApi {
             .ok_or(Error::msg("Could not read file_path as string"))?
             .to_string();
 
-        let ext = std::path::Path::new(file_path.as_str());
-        let ext = ext
-            .extension()
-            .unwrap_or_default()
-            .to_str()
-            .unwrap_or_default()
-            .to_lowercase()
-            .to_string();
-
-        println!("THE EXT IS {}", ext);
-
         let file_url = self.url.file_path(&file_path);
 
-        Ok(TGFile { url: file_url, ext })
+        Ok(file_url)
     }
 }

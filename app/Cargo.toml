@@ -10,4 +10,5 @@ tokio = { version = "1.21.2", features = ["full"] }
 dotenv = "0.15.0"
 
 client = { path = "../client" }
+files = { path = "../files" }
 telegram = { path = "../telegram" }

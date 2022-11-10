@@ -1,45 +1,18 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod path;
+use crate::path::get_file_paths;
 
-// struct Progress<'a> {
-//     text: &'a str,
-//     step_current: u32,
-//     step_total: u32,
-// }
+pub mod download;
+pub use crate::download::*;
 
-// impl<'a> Progress<'a> {
-//     fn new(step_total: u32) -> Self {
-//         Self {
-//             text: "",
-//             step_current: 0,
-//             step_total,
-//         }
-//     }
+pub mod utils;
+pub use crate::utils::*;
 
-//     fn set_text(&mut self, text: &'a str) -> &Self {
-//         self.text = text;
-//         self
-//     }
+pub fn setup() {
+    let file_paths = get_file_paths();
 
-//     fn step(&mut self, text: &'a str) -> &Self {
-//         self.set_text(text);
-//         self.step_current += 1;
-//         self
-//     }
+    ensure_dir_exists(&file_paths.root);
+    ensure_dir_exists(&file_paths.source);
+    ensure_dir_exists(&file_paths.processed);
 
-//     fn get_percent(&self) -> f32 {
-//         (self.step_current as f32) / (self.step_total as f32)
-//     }
-// }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // #[test]
-    // fn it_works() {
-    //     let result = add(2, 2);
-    //     assert_eq!(result, 4);
-    // }
+    println!("{:?}", file_paths)
 }

@@ -6,6 +6,7 @@ use dotenv::dotenv;
 
 fn main() {
     dotenv().ok();
+    files::setup();
 
     let mut app_threads = vec![];
 
