@@ -13,3 +13,4 @@ urlencoding = "2.1.2"
 crossbeam = "0.8.2"
 utils = { path = "../utils" }
 files = { path = "../files" }
+client = { path = "../client" }

@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use client::get_bucket_url;
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 
@@ -118,10 +119,11 @@ fn handle_make_post(
         let file_path = download_from_url(file_url)?;
         let _ = tx.send(format!("Uploading: {:?}", file_path));
 
-        let _ = ActiveRemote::upload(file_path)?;
-        let list = ActiveRemote::list()?;
+        let file_name = ActiveRemote::upload(file_path)?;
 
-        let _ = tx.send(format!("Saved: {:?}", list));
+        let url = get_bucket_url(&file_name);
+
+        let _ = tx.send(format!("Resource: {}", url));
     } else {
         let sum = post_text.link.len();
         if sum == 0 {

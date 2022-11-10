@@ -1,31 +1,42 @@
-use surf::{Client, Config, Url};
+mod json;
+pub mod url;
+use std::env;
 
-const BASE_PATH: &str = "path/";
+pub use url::*;
 
-pub fn get_url(path: &str) -> String {
-    format!("{}/{}", BASE_PATH, path)
+use anyhow::{Error, Result};
+
+use crate::json::ResApiIndex;
+
+pub struct APIClient {}
+
+pub enum ReqMeth {
+    GET,
+    POST,
 }
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+impl APIClient {
+    pub fn token() -> String {
+        env::var("API_TOKEN").expect("API_TOKEN not set in the environment")
+    }
 
-pub async fn try_surf() -> String {
-    let url = Url::parse("http://localhost:3000").unwrap();
-    let client: Client = Config::new().set_base_url(url).try_into().unwrap();
+    pub fn req(meth: ReqMeth, url: String) -> reqwest::blocking::RequestBuilder {
+        let url = get_api_url(&url);
+        let builder = reqwest::blocking::Client::new();
+        let builder = match meth {
+            ReqMeth::GET => builder.get(url),
+            ReqMeth::POST => builder.post(url),
+        };
+        let builder = builder.header(reqwest::header::AUTHORIZATION, Self::token());
+        builder
+    }
 
-    let mut req = client.get("http://localhost:3000/api/hello").await.unwrap();
-    let body = req.body_string().await;
-    body.unwrap()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // #[test]
-    // fn it_works() {
-    //     let result = add(2, 2);
-    //     assert_eq!(result, 4);
-    // }
+    pub fn test_connection() -> Result<ResApiIndex> {
+        let response = Self::req(ReqMeth::GET, "".to_string()).send()?;
+        if response.status() != 200 {
+            return Err(Error::msg("Could not connect to API."));
+        }
+        let json = response.json::<ResApiIndex>()?;
+        Ok(json)
+    }
 }

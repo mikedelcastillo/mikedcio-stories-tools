@@ -12,8 +12,8 @@ pub fn generate_id(len: u32) -> String {
     out
 }
 
-pub mod bot;
-pub use bot::*;
+pub mod parse;
+pub use parse::*;
 
 #[cfg(test)]
 mod tests {
