@@ -7,6 +7,9 @@ pub use crate::download::*;
 pub mod utils;
 pub use crate::utils::*;
 
+pub mod remote;
+pub use crate::remote::*;
+
 pub fn setup() {
     let file_paths = get_file_paths();
 
@@ -14,5 +17,5 @@ pub fn setup() {
     ensure_dir_exists(&file_paths.source);
     ensure_dir_exists(&file_paths.processed);
 
-    println!("{:?}", file_paths)
+    println!("{:?}", file_paths);
 }

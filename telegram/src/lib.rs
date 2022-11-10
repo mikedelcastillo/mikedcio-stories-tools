@@ -1,11 +1,11 @@
 use anyhow::{Error, Result};
-use files::download_from_url;
-use std::{
-    sync::mpsc::{self, Sender},
-    thread,
-};
+use std::sync::mpsc::{self, Sender};
+use std::thread;
+
+use files::{download_from_url, ActiveRemote, Remote};
 
 mod api;
+
 use api::{TGApi, TGMessage};
 use utils::{parse_make_post, BotCommand, PostText};
 
@@ -112,13 +112,18 @@ fn handle_make_post(
     let response = format!("{:?}:{:?}`", &post_text, &file_id);
 
     if let Some(file_id) = file_id {
-        // let _ = tx.send(format!("Downloading..."));
+        let _ = tx.send(format!("Downloading..."));
         let api = TGApi::new_from_env();
         let file_url = api.get_file_url(&file_id)?;
-        let _ = download_from_url(file_url);
-        // let _ = tx.send(format!("Loaded {} file.", file.ext));
+        let file_path = download_from_url(file_url)?;
+        let _ = tx.send(format!("Uploading: {:?}", file_path));
+
+        let _ = ActiveRemote::upload(file_path)?;
+        let list = ActiveRemote::list()?;
+
+        let _ = tx.send(format!("Saved: {:?}", list));
     } else {
-        let sum = post_text.title.len() + post_text.caption.len() + post_text.tags.len();
+        let sum = post_text.link.len();
         if sum == 0 {
             return Err(Error::msg("Post content is empty"));
         }

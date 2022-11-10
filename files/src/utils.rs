@@ -5,14 +5,14 @@ use utils::generate_id;
 
 pub static FILE_ID_LEN: u32 = 16;
 
-pub fn generate_file_id_name(ext: &String) -> (String, PathBuf) {
+pub fn generate_file_id_name(kind: &String, ext: &String) -> (String, PathBuf) {
     let ext = if ext.len() == 0 {
         "unknown".to_string()
     } else {
         ext.to_owned()
     };
     let file_id = generate_id(FILE_ID_LEN);
-    let file_name = format!("{}.{}", &file_id, &ext);
+    let file_name = format!("{}.{}.{}", &file_id, &kind, &ext);
     let file_name = PathBuf::from(file_name);
     (file_id, file_name)
 }
@@ -33,4 +33,28 @@ pub fn ensure_dir_exists(path: &PathBuf) {
     if !path.exists() {
         std::fs::create_dir_all(path).expect("Could not create folder");
     }
+}
+
+pub static IGNORE_FILE_NAMES: [&str; 5] = [
+    ".",
+    "..",
+    "cgi-bin",
+    ".ftpquota",
+    ".well-known",
+];
+
+pub fn filter_ignored(list: Vec<String>) -> Vec<String> {
+    let mut output: Vec<String> = vec![];
+
+    for file_name in list {
+        if file_name.starts_with("."){
+            continue;
+        }
+        if IGNORE_FILE_NAMES.contains(&file_name.as_str()) {
+            continue;
+        }
+        output.push(file_name);
+    };
+
+    output
 }
