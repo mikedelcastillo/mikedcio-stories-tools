@@ -10,6 +10,6 @@ anyhow = "1.0.66"
 reqwest = { version = "0.11", features = ["json", "blocking"] }
 crossbeam = "0.8.2"
 
-ftp = "3.0.1"
+suppaftp = "^4.5.0"
 
 utils = { path = "../utils" }

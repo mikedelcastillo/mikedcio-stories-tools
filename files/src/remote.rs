@@ -1,7 +1,7 @@
-use std::{env, path::PathBuf, io::{BufReader}, fs::File};
+use std::{env, path::PathBuf, io::{BufReader, Read, Cursor}, fs::File};
 
 use anyhow::{Result, Error};
-use ftp::FtpStream;
+use suppaftp::{FtpStream, types::FileType};
 
 use crate::filter_ignored;
 
@@ -30,22 +30,26 @@ impl Remote for FTPRemote {
         let mut ftp = Self::get_connection()?;
         let list = ftp.nlst(None)?;
         let list = filter_ignored(list);
+        
+        let _ = ftp.quit()?;
         Ok(list)
     }
 
     fn upload(file_path: PathBuf) -> Result<()> {
         let mut ftp = Self::get_connection()?;
 
-        let file = File::open(&file_path)?;
-        let mut reader = BufReader::new(file);
+        let file = std::fs::read(&file_path)?;
+        let mut reader = Cursor::new(file);
 
         let file_name = file_path.file_name()
             .ok_or(Error::msg("Cannot get file_name"))?
             .to_str()
             .ok_or(Error::msg("Could not convert file_name OsStr to str"))?;
 
-        let _ = ftp.put(file_name, &mut reader);
+        let _ = ftp.transfer_type(FileType::Binary)?;
+        let _ = ftp.put_file(file_name, &mut reader)?;
 
+        let _ = ftp.quit()?;
         Ok(())
     }
 }
