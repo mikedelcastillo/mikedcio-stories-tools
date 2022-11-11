@@ -84,6 +84,7 @@ impl TGApi {
         Self::new(token, admin_chat_id)
     }
 
+    #[allow(unused)]
     pub fn send(&self, message: String) -> Result<()> {
         println!("SENDING: {}", message);
         let url = self.url.send(vec![
@@ -97,11 +98,12 @@ impl TGApi {
         }
     }
 
+    #[allow(unused)]
     pub fn _send_multiple(&self, messages: Vec<String>) -> Result<()> {
         match crossbeam::thread::scope(|s| {
             for message in messages {
                 s.spawn(|_| {
-                    let _ = self.send(message);
+                    self.send(message);
                 });
             }
             Ok(())

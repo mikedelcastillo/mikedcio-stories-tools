@@ -25,7 +25,7 @@ pub fn run_telegram_bot() {
         crossbeam::thread::scope(|s| {
             for message in rx_message {
                 s.spawn(|_| {
-                    let _ = api.send(message);
+                    api.send(message);
                 });
             }
         })
@@ -36,7 +36,7 @@ pub fn run_telegram_bot() {
         println!("TG rx thread started.");
         let mut api = TGApi::new_from_env();
 
-        let _ = tx_message.send("Bot ready. Share stories about your day! 🤖".to_string());
+        tx_message.send("Bot ready. Share stories about your day! 🤖".to_string()).ok();
         let mut state = TGState::Start;
 
         loop {
@@ -51,8 +51,8 @@ pub fn run_telegram_bot() {
         }
     });
 
-    let _ = tx_thread.join().unwrap();
-    let _ = rx_thread.join().unwrap();
+    tx_thread.join().expect("Could not join tx_thread");
+    rx_thread.join().expect("Could not join rx_thread");
 }
 
 fn handle_message(message: TGMessage, state: TGState, tx: Sender<String>) -> TGState {
@@ -61,35 +61,36 @@ fn handle_message(message: TGMessage, state: TGState, tx: Sender<String>) -> TGS
     match state {
         TGState::Start => match message.command {
             BotCommand::MakePostStream => {
-                let _ = tx.send(format!("Starting post stream! 🎈"));
+                tx.send(format!("Starting post stream! 🎈")).ok();
                 TGState::MakePostStream
             }
             BotCommand::MakePost(post_text) => {
-                let _ = handle_make_post_on_new_thread(post_text, message.file_id, tx.clone());
+                handle_make_post_on_new_thread(post_text, message.file_id, tx.clone());
                 TGState::Start
             }
             _ => {
-                let _ = tx.send(format!(
+                tx.send(format!(
                     "I don't know what to do with `{:?}`. 😥",
                     message.command
-                ));
+                )).ok();
                 TGState::Start
             }
         },
         TGState::MakePostStream => match message.command {
             BotCommand::Done => {
-                let _ = tx.send("Post stream ended. 🤖".to_string());
+                tx.send("Post stream ended. 🤖".to_string()).ok();
                 TGState::Start
             }
             _ => {
                 let post_text = parse_make_post(&message.text);
-                let _ = handle_make_post_on_new_thread(post_text, message.file_id, tx.clone());
+                handle_make_post_on_new_thread(post_text, message.file_id, tx.clone());
                 TGState::MakePostStream
             }
         },
     }
 }
 
+#[allow(unused)]
 fn handle_make_post_on_new_thread(
     post_text: PostText,
     file_id: Option<String>,
@@ -99,7 +100,7 @@ fn handle_make_post_on_new_thread(
         match handle_make_post(post_text, file_id, tx.clone()) {
             Ok(_) => {}
             Err(err) => {
-                let _ = tx.send(format!("MakePostError: {:?}", err));
+                tx.send(format!("MakePostError: {:?}", err)).ok();
             }
         };
     });
@@ -129,11 +130,11 @@ fn handle_make_post(
             MediaType::Unknown => unreachable!(),
         };
 
-        let _ = tx.send(format!("Downloading..."));
+        tx.send(format!("Downloading...")).ok();
 
         let (file_id, file_path) = download_from_url(file_url)?;
 
-        let _ = tx.send(format!("Uploading: {:?}", file_path));
+        tx.send(format!("Uploading: {:?}", file_path)).ok();
 
         let file_name = ActiveRemote::upload(file_path)?;
 
@@ -154,10 +155,10 @@ fn handle_make_post(
             length: 0,
         };
 
-        let media_json = APIClient::upsert_media(media_json)?;
+        APIClient::upsert_media(media_json)?;
 
         let url = get_bucket_url(&file_name);
-        let _ = tx.send(format!("Resource: {}\n\n{:?}", url, media_json));
+        tx.send(format!("Resource: {}", url)).ok();
     } else {
         let sum = post_text.link.len();
         if sum == 0 {
@@ -165,7 +166,7 @@ fn handle_make_post(
         }
     }
 
-    let _ = tx.send(response);
+    tx.send(response).ok();
 
     Ok(())
 }

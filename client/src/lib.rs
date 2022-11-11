@@ -30,6 +30,7 @@ impl APIClient {
         builder
     }
 
+    #[allow(unused)]
     pub fn test_connection() -> Result<JsonApiIndex> {
         let response = Self::req(ReqMeth::GET, "".to_string()).send()?;
         if response.status() != 200 {
@@ -39,8 +40,9 @@ impl APIClient {
         Ok(json)
     }
 
+    #[allow(unused)]
     pub fn upsert_media(media: JsonMedia) -> Result<JsonMedia> {
-        let response = Self::req(ReqMeth::POST, "admin/media".to_string())
+        let response = Self::req(ReqMeth::POST, "media".to_string())
             .json(&media)
             .send()?;
         if response.status() != 200 {

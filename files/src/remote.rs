@@ -19,7 +19,7 @@ impl FTPRemote {
         let password = env::var("FTP_PASSWORD")?;
 
         let mut ftp_stream = FtpStream::connect(server)?;
-        let _ = ftp_stream.login(username.as_str(), password.as_str())?;
+        ftp_stream.login(username.as_str(), password.as_str())?;
 
         Ok(ftp_stream)
     }
@@ -31,7 +31,7 @@ impl Remote for FTPRemote {
         let list = ftp.nlst(None)?;
         let list = filter_ignored(list);
 
-        let _ = ftp.quit()?;
+        ftp.quit()?;
         Ok(list)
     }
 
@@ -47,10 +47,10 @@ impl Remote for FTPRemote {
             .to_str()
             .ok_or(Error::msg("Could not convert file_name OsStr to str"))?;
 
-        let _ = ftp.transfer_type(FileType::Binary)?;
-        let _ = ftp.put_file(file_name, &mut reader)?;
+        ftp.transfer_type(FileType::Binary)?;
+        ftp.put_file(file_name, &mut reader)?;
 
-        let _ = ftp.quit()?;
+        ftp.quit()?;
 
         Ok(file_name.to_owned())
     }
