@@ -62,7 +62,7 @@ pub enum MediaType {
 pub static MEDIA_EXT_PHOTO: [&str; 5] = ["jpg", "jpeg", "png", "gif", "webp"];
 pub static MEDIA_EXT_VIDEO: [&str; 3] = ["mp4", "mov", "avi"];
 
-pub fn ext_to_type(ext: String) -> MediaType {
+pub fn ext_to_type(ext: &String) -> MediaType {
     let ext = ext.to_lowercase();
 
     if MEDIA_EXT_PHOTO.contains(&ext.as_str()) {

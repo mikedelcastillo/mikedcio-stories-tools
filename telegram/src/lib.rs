@@ -1,9 +1,9 @@
 use anyhow::{Error, Result};
-use client::get_bucket_url;
+use client::{get_bucket_url, APIClient, JsonMedia, JsonMediaType};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 
-use files::{download_from_url, ActiveRemote, Remote};
+use files::{download_from_url, ext_to_type, get_file_ext, ActiveRemote, MediaType, Remote};
 
 mod api;
 
@@ -113,17 +113,51 @@ fn handle_make_post(
     let response = format!("{:?}:{:?}`", &post_text, &file_id);
 
     if let Some(file_id) = file_id {
-        let _ = tx.send(format!("Downloading..."));
         let api = TGApi::new_from_env();
         let file_url = api.get_file_url(&file_id)?;
-        let file_path = download_from_url(file_url)?;
+
+        let media_type = get_file_ext(&file_url)?;
+        let media_type = ext_to_type(&media_type);
+
+        if let MediaType::Unknown = &media_type {
+            return Err(Error::msg("File type is unknown."));
+        }
+
+        let media_type = match &media_type {
+            MediaType::Photo(_) => JsonMediaType::PHOTO,
+            MediaType::Video(_) => JsonMediaType::VIDEO,
+            MediaType::Unknown => unreachable!(),
+        };
+
+        let _ = tx.send(format!("Downloading..."));
+
+        let (file_id, file_path) = download_from_url(file_url)?;
+
         let _ = tx.send(format!("Uploading: {:?}", file_path));
 
         let file_name = ActiveRemote::upload(file_path)?;
 
-        let url = get_bucket_url(&file_name);
+        let thumb = match &media_type {
+            JsonMediaType::PHOTO => Some(file_name.clone()),
+            JsonMediaType::VIDEO => None,
+        };
 
-        let _ = tx.send(format!("Resource: {}", url));
+        let media_json = JsonMedia {
+            id: file_id,
+            media_type,
+            source: file_name.clone(),
+            thumb,
+            lq: Some(file_name.clone()),
+            hq: Some(file_name.clone()),
+            width: 0,
+            height: 0,
+            length: 0,
+        };
+
+        let media_json = APIClient::upsert_media(media_json)?;
+
+        let url = get_bucket_url(&file_name);
+        let _ = tx.send(format!("Resource: {}\n\n{:?}", url, media_json));
     } else {
         let sum = post_text.link.len();
         if sum == 0 {

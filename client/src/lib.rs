@@ -1,12 +1,11 @@
-mod json;
-pub mod url;
+use anyhow::{Error, Result};
 use std::env;
 
-pub use url::*;
+pub mod json;
+pub use crate::json::*;
 
-use anyhow::{Error, Result};
-
-use crate::json::ResApiIndex;
+pub mod url;
+pub use crate::url::*;
 
 pub struct APIClient {}
 
@@ -31,12 +30,27 @@ impl APIClient {
         builder
     }
 
-    pub fn test_connection() -> Result<ResApiIndex> {
+    pub fn test_connection() -> Result<JsonApiIndex> {
         let response = Self::req(ReqMeth::GET, "".to_string()).send()?;
         if response.status() != 200 {
             return Err(Error::msg("Could not connect to API."));
         }
-        let json = response.json::<ResApiIndex>()?;
+        let json = response.json::<JsonApiIndex>()?;
+        Ok(json)
+    }
+
+    pub fn upsert_media(media: JsonMedia) -> Result<JsonMedia> {
+        let response = Self::req(ReqMeth::POST, "admin/media".to_string())
+            .json(&media)
+            .send()?;
+        if response.status() != 200 {
+            return Err(Error::msg(format!(
+                "Could not upsert_media. {:?}",
+                response.text()
+            )));
+        }
+
+        let json = response.json::<JsonMedia>()?;
         Ok(json)
     }
 }
