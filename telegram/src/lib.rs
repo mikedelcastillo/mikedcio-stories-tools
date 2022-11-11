@@ -25,7 +25,7 @@ pub fn run_telegram_bot() {
         crossbeam::thread::scope(|s| {
             for message in rx_message {
                 s.spawn(|_| {
-                    api.send(message);
+                    api.send(message).ok();
                 });
             }
         })
@@ -36,7 +36,9 @@ pub fn run_telegram_bot() {
         println!("TG rx thread started.");
         let mut api = TGApi::new_from_env();
 
-        tx_message.send("Bot ready. Share stories about your day! 🤖".to_string()).ok();
+        tx_message
+            .send("Bot ready. Share stories about your day! 🤖".to_string())
+            .ok();
         let mut state = TGState::Start;
 
         loop {
@@ -72,7 +74,8 @@ fn handle_message(message: TGMessage, state: TGState, tx: Sender<String>) -> TGS
                 tx.send(format!(
                     "I don't know what to do with `{:?}`. 😥",
                     message.command
-                )).ok();
+                ))
+                .ok();
                 TGState::Start
             }
         },
@@ -90,7 +93,6 @@ fn handle_message(message: TGMessage, state: TGState, tx: Sender<String>) -> TGS
     }
 }
 
-#[allow(unused)]
 fn handle_make_post_on_new_thread(
     post_text: PostText,
     file_id: Option<String>,
