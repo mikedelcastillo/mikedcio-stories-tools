@@ -2,6 +2,8 @@ use rand::Rng;
 
 pub const ID_CHAR_POOL: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPRQSTUVWXYZ0123456789";
 
+pub static DEFAULT_ID_LEN: u32 = 16;
+
 pub fn generate_id(len: u32) -> String {
     let mut out = String::new();
     for _ in 0..len {

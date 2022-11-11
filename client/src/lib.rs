@@ -53,4 +53,18 @@ impl APIClient {
         let json = response.json::<JsonMedia>()?;
         Ok(json)
     }
+
+    pub fn upsert_story(story: JsonStory) -> Result<JsonStory> {
+        let response = Self::req(ReqMeth::POST, "stories".to_string())
+            .json(&story)
+            .send()?;
+        if response.status() != 200 {
+            return Err(Error::msg(format!(
+                "Could not upsert_story. {:?}",
+                response.text()
+            )));
+        }
+        let json = response.json::<JsonStory>()?;
+        Ok(json)
+    }
 }

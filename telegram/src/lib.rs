@@ -1,5 +1,5 @@
 use anyhow::{Error, Result};
-use client::{get_bucket_url, APIClient, JsonMedia, JsonMediaType};
+use client::{get_bucket_url, APIClient, JsonMedia, JsonMediaType, JsonStory, JsonStoryType};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 
@@ -8,7 +8,7 @@ use files::{download_from_url, ext_to_type, get_file_ext, ActiveRemote, MediaTyp
 mod api;
 
 use api::{TGApi, TGMessage};
-use utils::{parse_make_post, BotCommand, PostText};
+use utils::{parse_make_post, BotCommand, PostText, generate_id, DEFAULT_ID_LEN};
 
 #[derive(Debug)]
 pub enum TGState {
@@ -113,8 +113,6 @@ fn handle_make_post(
     file_id: Option<String>,
     tx: Sender<String>,
 ) -> Result<()> {
-    let response = format!("{:?}:{:?}`", &post_text, &file_id);
-
     if let Some(file_id) = file_id {
         let api = TGApi::new_from_env();
         let file_url = api.get_file_url(&file_id)?;
@@ -146,7 +144,7 @@ fn handle_make_post(
         };
 
         let media_json = JsonMedia {
-            id: file_id,
+            id: file_id.clone(),
             media_type,
             source: file_name.clone(),
             thumb,
@@ -159,16 +157,47 @@ fn handle_make_post(
 
         APIClient::upsert_media(media_json)?;
 
+        let content_type = if let Some(_) = &post_text.link {
+            JsonStoryType::LINK
+        } else {
+            JsonStoryType::MEDIA
+        };
+
+        let story_json = JsonStory {
+            id: file_id.clone(),
+            title: post_text.title,
+            caption: post_text.caption,
+            content_type,
+            content_link: post_text.link,
+            content_media_id: Some(file_id.clone()),
+            content_group_id: None,
+        };
+
         let url = get_bucket_url(&file_name);
-        tx.send(format!("Resource: {}", url)).ok();
+        let response = format!("{:?}\n{}", &story_json, url);
+
+        APIClient::upsert_story(story_json)?;
+
+        tx.send(response).ok();
     } else {
-        let sum = post_text.link.len();
-        if sum == 0 {
+        if let None = &post_text.link {
             return Err(Error::msg("Post content is empty"));
         }
-    }
 
-    tx.send(response).ok();
+        let story_json = JsonStory {
+            id: generate_id(DEFAULT_ID_LEN),
+            title: post_text.title,
+            caption: post_text.caption,
+            content_type: JsonStoryType::LINK,
+            content_link: post_text.link,
+            content_media_id: None,
+            content_group_id: None,
+        };
+
+        let response = format!("{:?}", &story_json);
+        APIClient::upsert_story(story_json)?;
+        tx.send(response).ok();
+    }
 
     Ok(())
 }

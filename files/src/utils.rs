@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use utils::generate_id;
-
-pub static FILE_ID_LEN: u32 = 16;
+use utils::{generate_id, DEFAULT_ID_LEN};
 
 pub fn generate_file_id_name(kind: &String, ext: &String) -> (String, PathBuf) {
     let ext = if ext.len() == 0 {
@@ -11,7 +9,7 @@ pub fn generate_file_id_name(kind: &String, ext: &String) -> (String, PathBuf) {
     } else {
         ext.to_owned()
     };
-    let file_id = generate_id(FILE_ID_LEN);
+    let file_id = generate_id(DEFAULT_ID_LEN);
     let file_name = format!("{}.{}.{}", &file_id, &kind, &ext);
     let file_name = PathBuf::from(file_name);
     (file_id, file_name)

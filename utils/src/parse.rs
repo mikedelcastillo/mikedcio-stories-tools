@@ -4,7 +4,7 @@ use regex::Regex;
 pub struct PostText {
     pub title: String,
     pub tags: Vec<String>,
-    pub link: String,
+    pub link: Option<String>,
     pub caption: String,
 }
 
@@ -29,7 +29,7 @@ pub fn parse_make_post(content: &String) -> PostText {
     let caption = re_prop.replace_all(content, "").trim().to_string();
     let mut title = String::new();
     let mut tags = vec![];
-    let mut link = String::new();
+    let mut link = None;
 
     // Capture post properties
     for capture in re_prop.captures_iter(content) {
@@ -46,7 +46,7 @@ pub fn parse_make_post(content: &String) -> PostText {
                 tags.push(tag.to_string());
             }
         } else if prop == "link" {
-            link = val.trim().to_string();
+            link = Some(val.trim().to_string());
         }
     }
 
